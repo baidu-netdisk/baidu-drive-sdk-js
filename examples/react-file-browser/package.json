@@ -1,0 +1,27 @@
+{
+  "name": "example-react-file-browser",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "baidu-drive-sdk-js 官方示例：用 React + Vite 浏览百度网盘文件",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "baidu-drive-sdk-js": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.7",
+    "vitest": "^4.0.0"
+  }
+}

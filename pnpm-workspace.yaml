@@ -1,0 +1,7 @@
+packages:
+  - examples/*
+
+# pnpm 10 默认拦截依赖的安装脚本，esbuild 需要它来下载/校验平台二进制，
+# 不放开的话 tsup（基于 esbuild）跑不起来。
+onlyBuiltDependencies:
+  - esbuild

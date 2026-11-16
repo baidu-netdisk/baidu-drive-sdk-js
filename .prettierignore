@@ -1,0 +1,11 @@
+# 构建产物与依赖
+dist/
+coverage/
+node_modules/
+examples/*/dist/
+
+# 锁文件由包管理器生成，不格式化
+pnpm-lock.yaml
+
+# Markdown 不做强制格式化（避免历史文档大面积改版）
+*.md

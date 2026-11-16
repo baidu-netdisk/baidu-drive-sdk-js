@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: 规范检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commit message format
+        if: github.event_name == 'pull_request'
+        run: |
+          # Commit 消息必须符合 Conventional Commits 规范
+          COMMITS=$(git log --format="%s" ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+          PATTERN="^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+"
+          FAILED=0
+          while IFS= read -r commit; do
+            [ -z "$commit" ] && continue
+            # 跳过 merge commit
+            if [[ "$commit" == Merge* ]]; then
+              continue
+            fi
+            if [[ ! "$commit" =~ $PATTERN ]]; then
+              echo "❌ 不符合规范的 commit: $commit"
+              FAILED=1
+            fi
+          done <<< "$COMMITS"
+          if [ "$FAILED" -eq 1 ]; then
+            echo "格式要求: <type>(<scope>): <subject>"
+            exit 1
+          fi
+          echo "✅ 所有 commit 消息格式正确"
+
+      - name: Check for sensitive files
+        run: |
+          # 先自证检查本身有效（用临时仓库造 .pem/.env/credentials.json），再检查真实文件
+          bash scripts/check-sensitive-files.sh --self-test
+          bash scripts/check-sensitive-files.sh
+
+      - name: Check for hardcoded credentials
+        run: |
+          # AppKey 是公开标识，其余密钥一律不允许进仓库；access_token 赋值也按凭据处理
+          if git grep -nIE "(secret_?key|client_secret|access_token)[[:space:]]*[:=][[:space:]]*['\"][A-Za-z0-9_-]{16,}" -- ':!*.test.ts' ':!*.md' > /tmp/hits.txt; then
+            echo "❌ 发现疑似硬编码凭据："
+            cat /tmp/hits.txt
+            exit 1
+          fi
+          echo "✅ 未发现硬编码凭据"
+
+  verify:
+    name: 构建与测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Check version consistency
+        run: node scripts/check-version.mjs
+
+      - name: Check formatting
+        run: pnpm run format:check
+
+      - name: Type check
+        run: pnpm type-check
+
+      - name: Test
+        run: pnpm test
+
+      - name: Dependency audit
+        run: pnpm audit --audit-level=high
+
+      - name: Build
+        run: pnpm build
+
+      - name: Smoke test built exports
+        run: node scripts/smoke-test.mjs
+
+      - name: Lint package exports
+        run: pnpm dlx publint@0.3.25
+
+      # 示例应用引用的是 SDK 的 dist/ 产物，必须放在 build 之后跑。
+      # 这一步同时验证「exports 映射 + 类型声明」在真实使用方那里是通的。
+      - name: Build example app
+        run: |
+          pnpm --filter example-react-file-browser type-check
+          pnpm --filter example-react-file-browser build
+          pnpm --filter example-react-file-browser test
