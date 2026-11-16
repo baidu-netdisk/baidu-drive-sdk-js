@@ -41,10 +41,9 @@ jobs:
             echo "✅ Tag $TAG 不存在，准备发布"
           fi
 
+      # 版本由 package.json 的 packageManager 字段决定（与 ci.yml 一致）
       - uses: pnpm/action-setup@v4
         if: steps.check_tag.outputs.exists == 'false'
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         if: steps.check_tag.outputs.exists == 'false'
